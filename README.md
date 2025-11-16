@@ -31,7 +31,6 @@ The game, "Name the Neighbors," is an interactive game designed to test a user's
 
 ## 2. Frontend Layout & Design
 
-Bu bölümde, ödevde istenen "çizimler veya taslaklar (drawings or sketches)" yer almaktadır.
 
 **Aşama 1: Harita Görevi (Map Identification)**
 ![Design Sketch - Stage 1](stage1.PNG)
