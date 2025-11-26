@@ -1,23 +1,21 @@
 // ==========================================
-// GLOBAL DEĞİŞKENLER VE AYARLAR
+// GLOBAL VARIABLES & SETTINGS
 // ==========================================
 let state = {
     score: 0,
     lives: 3,
     timeLeft: 60,
     isBonusRound: false,
-    currentTarget: null, // Şu an aranan ülke (örn: "Turkey")
-    guessedNeighborsInRound: [] // Bonus turunda bilinenler
+    currentTarget: null,
+    guessedNeighborsInRound: []
 };
 
 let timerInterval;
-let geoJsonLayer; // Harita katmanını tutacak değişken
+let geoJsonLayer;
 
-// Verileri tutacak değişkenler (Başlangıçta boş)
 let geoJSONData = null;
 let neighborData = null;
 
-// HTML Elementlerini Seç
 const els = {
     score: document.getElementById('score-disp'),
     lives: document.getElementById('lives-disp'),
@@ -34,9 +32,8 @@ const els = {
 };
 
 // ==========================================
-// BÖLÜM 1: HARİTA BAŞLATMA (LEAFLET)
+// PART 1: MAP INITIALIZATION (LEAFLET)
 // ==========================================
-// Haritayı dünya görünümünde başlat
 const map = L.map('map-container').setView([20, 0], 2);
 
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -46,77 +43,64 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 
 // ==========================================
-// BÖLÜM 2: VERİ YÜKLEME (FETCH API) - KRİTİK KISIM
+// PART 2: DATA LOADING (FETCH API)
 // ==========================================
-// Bu fonksiyon dışarıdaki .geojson ve .json dosyalarını yükler.
 async function loadExternalData() {
-    els.taskText.textContent = "Veriler yükleniyor, lütfen bekleyin...";
-    console.log("Veri yükleme işlemi başladı...");
+    // DEĞİŞTİ: İngilizce yükleme mesajı
+    els.taskText.textContent = "Loading data, please wait...";
+    console.log("Data loading started...");
 
     try {
-        // 1. GeoJSON (Harita Sınırları) dosyasını yükle
-        // 'countries.geojson' dosyasının klasörde olduğundan emin ol.
-        const geoResponse = await fetch('countries.json');
-        if (!geoResponse.ok) throw new Error("countries.geojson dosyası bulunamadı!");
+        // Dosya adının doğru olduğundan emin ol!
+        const geoResponse = await fetch('countries.geojson.json');
+        if (!geoResponse.ok) throw new Error("countries.geojson.json not found!");
         geoJSONData = await geoResponse.json();
-        console.log("GeoJSON yüklendi.");
+        console.log("GeoJSON loaded.");
 
-        // 2. Komşuluk JSON dosyasını yükle
-        // 'neighbors.json' dosyasının klasörde olduğundan emin ol.
-        // EĞER BU DOSYAYI BULAMAZSAN: Aşağıdaki 3 satırı sil ve yerine
-        // neighborData = { "Turkey": ["Greece", "Bulgaria"], "Germany": ["France"] };
-        // gibi geçici el yapımı bir veri yaz.
         const neighborResponse = await fetch('neighbors.json');
-        if (!neighborResponse.ok) throw new Error("neighbors.json dosyası bulunamadı!");
+        if (!neighborResponse.ok) throw new Error("neighbors.json not found!");
         neighborData = await neighborResponse.json();
-        console.log("Komşuluk verisi yüklendi.");
+        console.log("Neighbor data loaded.");
 
-        // Her şey yolunda, oyunu başlat
         initGameAfterLoad();
 
     } catch (error) {
-        console.error("Kritik Hata:", error);
-        els.taskText.innerHTML = `<strong style="color:red;">Hata: Veri dosyaları yüklenemedi!</strong><br>Lütfen F12'ye basıp Konsolu kontrol edin.`;
-        alert("Hata! 'countries.geojson' ve 'neighbors.json' dosyalarının index.html ile aynı klasörde olduğundan emin olun.");
+        console.error("Critical Error:", error);
+        // DEĞİŞTİ: İngilizce hata mesajı
+        els.taskText.innerHTML = `<strong style="color:red;">Error: Data files could not be loaded!</strong><br>Please check the Console (F12).`;
+        alert("Error! Make sure 'countries.geojson.json' and 'neighbors.json' are in the same folder as index.html.");
     }
 }
 
 
 // ==========================================
-// BÖLÜM 3: OYUN FONKSİYONLARI
+// PART 3: GAME FUNCTIONS
 // ==========================================
 
-// Veriler yüklendikten sonra çalışacak ana fonksiyon
 function initGameAfterLoad() {
-    // 1. Yüklenen GeoJSON Verisini Haritaya Ekle
     renderMapData();
-    // 2. İlk turu başlat
     startNewRound();
 }
 
-// Harita Verisini Görselleştir
 function renderMapData() {
     if (geoJsonLayer) map.removeLayer(geoJsonLayer);
 
     geoJsonLayer = L.geoJSON(geoJSONData, {
         style: { color: '#3388ff', weight: 1, fillOpacity: 0.4 },
         onEachFeature: function(feature, layer) {
-            // Ülke adını al (Veri setine göre 'name', 'ADMIN', 'sovereignt' olabilir, kontrol et)
             const countryName = feature.properties.name || feature.properties.ADMIN;
             layer.on('click', function() {
                 handleCountryClick(countryName);
             });
-            // İpucu: Üzerine gelince adı yazsın
-            layer.bindTooltip(countryName);
+            // --- DÜZELTME: Tooltip (isim gösterme) satırı silindi ---
+            // layer.bindTooltip(countryName);  <-- BU SATIR ARTIK YOK
         }
     }).addTo(map);
 }
 
-// Yeni Tur Başlat (Aşama 1)
 function startNewRound() {
     if (state.lives <= 0) { endGame(); return; }
 
-    // Arayüzü sıfırla
     state.isBonusRound = false;
     state.timeLeft = 60;
     state.guessedNeighborsInRound = [];
@@ -124,48 +108,42 @@ function startNewRound() {
     els.stage1Area.style.display = 'block';
     els.stage2Area.style.display = 'none';
 
-    // Rastgele bir ülke seç (Yüklenen gerçek veriden)
     const features = geoJSONData.features;
     const randomFeature = features[Math.floor(Math.random() * features.length)];
-    // Ülke adını doğru özellikten aldığımıza emin olalım
     state.currentTarget = randomFeature.properties.name || randomFeature.properties.ADMIN;
 
-    els.taskText.innerHTML = `GÖREV: Haritada <strong>${state.currentTarget}</strong> ülkesini bul!`;
-    console.log(`Hedef ülke: ${state.currentTarget}`); // Test için konsola yaz
+    // DEĞİŞTİ: İngilizce görev mesajı
+    els.taskText.innerHTML = `TASK: Find <strong>${state.currentTarget}</strong> on the map!`;
+    console.log(`Target country: ${state.currentTarget}`);
 
-    // Zamanlayıcıyı başlat
     clearInterval(timerInterval);
     timerInterval = setInterval(() => {
         state.timeLeft--;
         updateUI();
         if (state.timeLeft <= 0) {
             clearInterval(timerInterval);
-            handleWrongGuess("Süre doldu!");
+            // DEĞİŞTİ: İngilizce süre doldu mesajı
+            handleWrongGuess("Time's up!");
         }
     }, 1000);
 }
 
-// Haritada Tıklama Mantığı
 function handleCountryClick(clickedCountryName) {
     if (state.isBonusRound) return;
 
-    console.log(`Tıklanan: ${clickedCountryName}, Hedef: ${state.currentTarget}`);
+    console.log(`Clicked: ${clickedCountryName}, Target: ${state.currentTarget}`);
 
-    // Bazı veri setlerinde isimler farklı olabilir (örn: "United States" vs "USA")
-    // Basit bir karşılaştırma yapıyoruz. Gerekirse daha karmaşık bir kontrol eklenebilir.
     if (clickedCountryName === state.currentTarget) {
-        // DOĞRU
         clearInterval(timerInterval);
         state.score += 100;
         updateUI();
         startBonusRound();
     } else {
-        // YANLIŞ
-        handleWrongGuess(`Yanlış! Orası ${clickedCountryName}.`);
+        // DEĞİŞTİ: İngilizce yanlış tahmin mesajı
+        handleWrongGuess(`Wrong! That is ${clickedCountryName}.`);
     }
 }
 
-// Yanlış Tahmin İşlemi
 function handleWrongGuess(msg) {
     state.lives--;
     alert(msg);
@@ -177,11 +155,10 @@ function handleWrongGuess(msg) {
     }
 }
 
-// Bonus Turunu Başlat (Aşama 2)
 function startBonusRound() {
-    // Hedef ülkenin komşu verisi var mı kontrol et
     if (!neighborData[state.currentTarget]) {
-        alert(`Üzgünüm, ${state.currentTarget} için komşuluk verisi bulunamadı. Yeni tur başlıyor.`);
+        // DEĞİŞTİ: İngilizce veri yok mesajı
+        alert(`Sorry, neighbor data not found for ${state.currentTarget}. Starting new round.`);
         startNewRound();
         return;
     }
@@ -189,44 +166,40 @@ function startBonusRound() {
     state.isBonusRound = true;
     els.stage1Area.style.display = 'none';
     els.stage2Area.style.display = 'block';
-    els.bonusTaskText.innerHTML = `BONUS: <strong>${state.currentTarget}</strong> ülkesinin komşularını yaz!`;
+    // DEĞİŞTİ: İngilizce bonus görevi mesajı
+    els.bonusTaskText.innerHTML = `BONUS: Type neighbors of <strong>${state.currentTarget}</strong>!`;
     els.guessedList.innerHTML = '';
     els.neighborInput.value = '';
     els.feedback.textContent = '';
 }
 
-// Bonus Tahmin Kontrolü
 function checkNeighborGuess() {
     const userGuessInput = els.neighborInput.value.trim();
     if (!userGuessInput) return;
 
-    // Büyük/küçük harf duyarlılığını azaltmak için ilk harfi büyüt, kalanı küçült
-    // (Veri setindeki isim formatına uydurmak gerekebilir)
     const userGuess = userGuessInput.charAt(0).toUpperCase() + userGuessInput.slice(1).toLowerCase();
-
-    // Gerçek komşu listesini al
     const correctNeighbors = neighborData[state.currentTarget];
 
     if (correctNeighbors.includes(userGuess) && !state.guessedNeighborsInRound.includes(userGuess)) {
-        // DOĞRU ve YENİ
         state.score += 10;
         state.guessedNeighborsInRound.push(userGuess);
         const li = document.createElement('li');
         li.textContent = `${userGuess} (+10)`;
         els.guessedList.appendChild(li);
-        showFeedback("Doğru!", true);
+        // DEĞİŞTİ: İngilizce doğru mesajı
+        showFeedback("Correct!", true);
     } else if (state.guessedNeighborsInRound.includes(userGuess)) {
-         showFeedback("Bunu zaten yazdın.", false);
+         // DEĞİŞTİ: İngilizce tekrar mesajı
+         showFeedback("Already guessed.", false);
     } else {
-        // Komşu listesinde yoksa yanlıştır
-        showFeedback("Yanlış komşu veya ismi hatalı yazdın.", false);
-        console.log(`Yanlış tahmin: ${userGuess}. Doğru liste:`, correctNeighbors);
+        // DEĞİŞTİ: İngilizce yanlış komşu mesajı
+        showFeedback("Wrong neighbor or misspelled.", false);
+        console.log(`Wrong guess: ${userGuess}. Correct list:`, correctNeighbors);
     }
     els.neighborInput.value = '';
     updateUI();
 }
 
-// Yardımcı Fonksiyonlar
 function showFeedback(msg, isSuccess) {
     els.feedback.textContent = msg;
     els.feedback.className = isSuccess ? 'success-msg' : 'error-msg';
@@ -241,12 +214,13 @@ function updateUI() {
 
 function endGame() {
     clearInterval(timerInterval);
-    alert(`Oyun Bitti! Toplam Skorun: ${state.score}`);
+    // DEĞİŞTİ: İngilizce oyun sonu mesajı
+    alert(`Game Over! Your Total Score: ${state.score}`);
     location.reload();
 }
 
 // ==========================================
-// BÖLÜM 4: OLAY DİNLEYİCİLERİ
+// PART 4: EVENT LISTENERS
 // ==========================================
 els.submitBtn.addEventListener('click', checkNeighborGuess);
 els.finishBtn.addEventListener('click', startNewRound);
@@ -255,7 +229,6 @@ els.neighborInput.addEventListener('keypress', (e) => {
 });
 
 // ==========================================
-// BAŞLAT!
+// START!
 // ==========================================
-// Sayfa yüklendiğinde veri yükleme fonksiyonunu çağır
 loadExternalData();
