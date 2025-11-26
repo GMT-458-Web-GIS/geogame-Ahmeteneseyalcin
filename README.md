@@ -1,6 +1,6 @@
 # GeoGame: Name the Neighbors
 
-Link to my geogame : <img width="559" height="318" alt="image" src="https://github.com/user-attachments/assets/afc5656f-4cf3-4fde-92d0-7594014f717c" />
+Link to my geogame : https://gmt-458-web-gis.github.io/geogame-Ahmeteneseyalcin/
 
 
 This repository contains the project for **GMT 458 - Web GIS**, Assignment 2: GeoGame. The goal is to design and develop an interactive "GeoGame" using HTML, CSS, and JavaScript.
