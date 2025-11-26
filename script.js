@@ -52,7 +52,7 @@ async function loadExternalData() {
 
     try {
         // Dosya adının doğru olduğundan emin ol!
-        const geoResponse = await fetch('countries.geojson.json');
+        const geoResponse = await fetch('countries.json');
         if (!geoResponse.ok) throw new Error("countries.geojson.json not found!");
         geoJSONData = await geoResponse.json();
         console.log("GeoJSON loaded.");
@@ -232,3 +232,4 @@ els.neighborInput.addEventListener('keypress', (e) => {
 // START!
 // ==========================================
 loadExternalData();
+
