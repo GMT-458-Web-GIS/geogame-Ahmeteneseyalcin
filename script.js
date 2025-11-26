@@ -34,11 +34,11 @@ const els = {
 // ==========================================
 // PART 1: MAP INITIALIZATION (LEAFLET)
 // ==========================================
-const map = L.map('map-container').setView([20, 0], 2);
-
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '© OpenStreetMap'
+// CartoDB Light No Labels (İsimsiz Açık Renk Harita)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 20
 }).addTo(map);
 
 
@@ -232,4 +232,5 @@ els.neighborInput.addEventListener('keypress', (e) => {
 // START!
 // ==========================================
 loadExternalData();
+
 
